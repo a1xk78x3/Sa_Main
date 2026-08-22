@@ -1,0 +1,101 @@
+name: Terraform
+
+on:
+  push:
+    branches:
+      - "**"
+
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  terraform-plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Azure Login
+        run: |
+          az login \
+            --service-principal \
+            --username "1e0a631c-b7d0-4259-b14c-66f184121849" \
+            --password "Mpb8Q~-6UN~JwiZBi-KwRN.OR0.hBE7SRAbEjaPE" \
+            --tenant "fac2acda-64bb-4737-bed5-3fa18032b9c1"
+
+      - name: Set Azure Subscription
+        run: |
+          az account set \
+            --subscription "5d2acd81-86f8-44f1-a634-cfdf1df4841c"
+
+      - name: Check Azure Login
+        run: az account show
+
+      - name: Terraform Format
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: terraform plan
+
+  terraform-apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+
+    needs: terraform-plan
+
+    # Apply ONLY after push to main
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    defaults:
+      run:
+        working-directory: environments/preprod
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Azure Login
+        run: |
+          az login \
+            --service-principal \
+            --username "1e0a631c-b7d0-4259-b14c-66f184121849" \
+            --password "Mpb8Q~-6UN~JwiZBi-KwRN.OR0.hBE7SRAbEjaPE" \
+            --tenant "fac2acda-64bb-4737-bed5-3fa18032b9c1"
+
+      - name: Set Azure Subscription
+        run: |
+          az account set \
+            --subscription "5d2acd81-86f8-44f1-a634-cfdf1df4841c"
+
+      - name: Check Azure Login
+        run: az account show
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
